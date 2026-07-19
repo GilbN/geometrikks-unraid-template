@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>geometrikks-timescaledb</Name>
+  <Repository>timescale/timescaledb-ha:pg18</Repository>
+  <Registry>https://hub.docker.com/r/timescale/timescaledb-ha</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Icon>https://raw.githubusercontent.com/GilbN/geometrikks/main/resources/static/pwa-512x512.png</Icon>
+  <Overview>TimescaleDB (PostgreSQL + TimescaleDB + PostGIS) database for GeoMetrikks. Install this container first, set a POSTGRES_PASSWORD below, then install the "geometrikks" app template and use the same password there. This container has no web UI - it exists purely as the GeoMetrikks database backend.</Overview>
+  <Category>Network:Management</Category>
+  <Support>https://github.com/GilbN/geometrikks/issues</Support>
+  <Project>https://github.com/GilbN/geometrikks</Project>
+  <TemplateURL>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/templates/geometrikks-timescaledb.xml</TemplateURL>
+  <ReadMe>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/README.md</ReadMe>
+  <ExtraSearchTerms>postgres postgresql postgis timescale geometrikks database</ExtraSearchTerms>
+  <Requires>Must be reachable from the geometrikks app container. This template exposes port 5432 to the host/LAN so the app container (run separately) can reach it via the Unraid server's IP address. Runs as fixed UID/GID 1000 the whole time (no root phase to self-fix permissions, unlike most Postgres images) - pre-create the Appdata folder and chown it to 1000:1000 before first start, and do not run Unraid's "New Permissions" tool against it afterward, or Postgres will fail to start.</Requires>
+  <License>Apache-2.0 (TimescaleDB Community License for TimescaleDB extension - see https://github.com/timescale/timescaledb/blob/main/LICENSE)</License>
+  <Changes>Initial release</Changes>
+  <Date>2026-07-19</Date>
+  <ExtraParams>--shm-size=256m</ExtraParams>
+
+  <Config Name="DB Port" Target="5432" Default="5432" Mode="tcp" Description="PostgreSQL port. Exposed to the host/LAN so the geometrikks app container can connect using the Unraid server's IP." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Appdata" Target="/home/postgres/pgdata/data" Default="" Mode="rw" Description="Database data directory. &lt;br&gt;&lt;b&gt;Performance tip:&lt;/b&gt; For best performance, use a path that bypasses the Unraid array (e.g. /mnt/cache/appdata or /mnt/appdata if configured). Paths under /mnt/user go through a FUSE layer that significantly slows database operations." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_PASSWORD" Target="POSTGRES_PASSWORD" Default="" Description="Database password. Must match the DB_PASSWORD value you set in the geometrikks app template." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="POSTGRES_USER" Target="POSTGRES_USER" Default="geouser" Description="Database user. Must match DB_USER in the geometrikks app template - only change if you also change it there." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="POSTGRES_DB" Target="POSTGRES_DB" Default="geometrikks" Description="Database name. Must match DB_DATABASE in the geometrikks app template - only change if you also change it there." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>

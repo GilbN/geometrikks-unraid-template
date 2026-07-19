@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>geometrikks</Name>
+  <Repository>ghcr.io/gilbn/geometrikks:latest</Repository>
+  <Registry>https://github.com/GilbN/geometrikks/pkgs/container/geometrikks</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Icon>https://raw.githubusercontent.com/GilbN/geometrikks/main/resources/static/pwa-512x512.png</Icon>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <Overview>
+GeoMetrikks is a real-time geolocation analytics tool that tails your nginx access logs, performs GeoIP lookups, and visualizes traffic on a live interactive map - no external services required.
+
+Features:
+- Live GeoIP map with real-time request visualization
+- Traffic analytics dashboard with configurable date ranges
+- Searchable access log history with filtering and sorting
+- WebSocket-backed live log tail
+- Batch import of archived logs
+
+Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-timescaledb" template from this same repository first, or point this container at your own TimescaleDB+PostGIS instance. Also requires a free MaxMind GeoLite2 account for GeoIP data (https://www.maxmind.com/en/geolite2/signup). See the repository README for full setup steps.
+  </Overview>
+  <Category>Network:Management</Category>
+  <Support>https://github.com/GilbN/geometrikks/issues</Support>
+  <Project>https://github.com/GilbN/geometrikks</Project>
+  <TemplateURL>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/templates/geometrikks.xml</TemplateURL>
+  <ReadMe>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/README.md</ReadMe>
+  <ExtraSearchTerms>nginx geoip analytics traffic map log parser timescaledb</ExtraSearchTerms>
+  <Requires>Requires a reachable TimescaleDB+PostGIS database (see the companion geometrikks-timescaledb template) and a free MaxMind GeoLite2 account for GeoIP downloads.
+  
+  GeoMetrikks parses a specific nginx log_format. Add it to the http block in your nginx.conf:
+
+  <code>
+  log_format geometrikks '$remote_addr - $remote_user [$time_local] '
+        '"$request" $status $body_bytes_sent '
+        '"$http_referer" $host "$http_user_agent" '
+        '"$request_time" "$upstream_response_time"';
+  </code>
+
+  Then set your access_log to use this format:
+  <code>
+  access_log /var/log/nginx/access.log geometrikks;
+  </code>
+
+</Requires>
+  <License>MIT</License>
+  <Changes>Initial release</Changes>
+  <Date>2026-07-19</Date>
+
+  <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/live.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/map.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/analytics.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/live-tail.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/access-logs.png</Screenshot>
+
+  <!-- Core -->
+  <Config Name="WebUI" Target="8000" Default="8000" Mode="tcp" Description="HTTP port for the GeoMetrikks web UI." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="GeoIP Data" Target="/app/data/geoip" Default="/mnt/cache/appdata/geometrikks/geoip" Mode="rw" Description="Persistent storage for the downloaded MaxMind GeoLite2 database. This container runs as fixed UID/GID 1000 (not Unraid's usual nobody:users 99:100) - before first start, create this folder and run 'chown -R 1000:1000' on it or the container will fail to write the GeoIP database." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Nginx Logs" Target="/var/log/nginx" Default="/mnt/cache/appdata/swag/log/nginx" Mode="ro" Description="Host directory containing your nginx access logs, mounted read-only. Default assumes SWAG - change to your reverse proxy's log directory (Nginx Proxy Manager, etc.)." Type="Path" Display="always" Required="true" Mask="false"/>
+
+  <Config Name="APP_ADMIN_USER" Target="APP_ADMIN_USER" Default="admin" Description="Web UI login username." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="APP_ADMIN_PASSWORD" Target="APP_ADMIN_PASSWORD" Default="" Description="Web UI login password. Required unless APP_AUTH_DISABLED=true." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="APP_AUTH_DISABLED" Target="APP_AUTH_DISABLED" Default="false" Description="Set true ONLY if this container sits behind an authenticating reverse proxy (Authelia, Tailscale, etc)." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="MAXMINDDB_USER_ID" Target="MAXMINDDB_USER_ID" Default="" Description="MaxMind account ID, for GeoLite2 database auto-download. Free account: https://www.maxmind.com/en/geolite2/signup" Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="MAXMINDDB_LICENSE_KEY" Target="MAXMINDDB_LICENSE_KEY" Default="" Description="MaxMind license key, for GeoLite2 database auto-download." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="LOGPARSER_LOG_PATHS" Target="LOGPARSER_LOG_PATHS" Default="/var/log/nginx/access.log" Description="Nginx access log file(s) to tail, container-side path(s). Single path or a JSON list ['/var/log/nginx/access.log', '/var/log/nginx/access2.log'] for multiple files." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="LOGPARSER_HOST_NAME" Target="LOGPARSER_HOST_NAME" Default="Unraid" Description="Hostname label attached to ingested log events." Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <!-- Database connection -->
+  <Config Name="DB_HOST" Target="DB_HOST" Default="" Description="IP address of your TimescaleDB container - typically your Unraid server's IP if you installed the companion geometrikks-timescaledb template." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="DB_PASSWORD" Target="DB_PASSWORD" Default="" Description="Database password. Must match POSTGRES_PASSWORD in the geometrikks-timescaledb template." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="DB_PORT" Target="DB_PORT" Default="5432" Description="Database port." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="DB_USER" Target="DB_USER" Default="geouser" Description="Database user. Must match POSTGRES_USER in the geometrikks-timescaledb template." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="DB_DATABASE" Target="DB_DATABASE" Default="geometrikks" Description="Database name. Must match POSTGRES_DB in the geometrikks-timescaledb template." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="API_LOG_LEVEL" Target="API_LOG_LEVEL" Default="INFO" Description="Application log verbosity (DEBUG, INFO, WARNING, ERROR)." Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <!-- Database - advanced pool tuning -->
+  <Config Name="DB_ECHO" Target="DB_ECHO" Default="false" Description="Enable SQLAlchemy query logging." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_ECHO_POOL" Target="DB_ECHO_POOL" Default="false" Description="Enable SQLAlchemy connection pool logging." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_MAX_OVERFLOW" Target="DB_MAX_OVERFLOW" Default="10" Description="Max connections above pool_size." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_POOL_SIZE" Target="DB_POOL_SIZE" Default="5" Description="Database connection pool size." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_POOL_TIMEOUT" Target="DB_POOL_TIMEOUT" Default="30" Description="Connection pool timeout in seconds." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_POOL_RECYCLE" Target="DB_POOL_RECYCLE" Default="3600" Description="Connection recycle time in seconds." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_POOL_DISABLED" Target="DB_POOL_DISABLED" Default="false" Description="Disable connection pooling." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_POOL_PRE_PING" Target="DB_POOL_PRE_PING" Default="true" Description="Enable pool pre-ping to check connections before use." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DB_DROP_ON_STARTUP" Target="DB_DROP_ON_STARTUP" Default="false" Description="DESTRUCTIVE - drops all tables on startup. Development only. Leave false." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- GeoIP -->
+  <Config Name="GEOIP_LOCALES" Target="GEOIP_LOCALES" Default="[&quot;en&quot;]" Description="JSON list of GeoIP locales to use." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="GEOIP_VALIDATE_DB_PATH" Target="GEOIP_VALIDATE_DB_PATH" Default="false" Description="Fail settings validation when the GeoIP database file is missing." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="GEOIP_VALIDATE_LOCALES" Target="GEOIP_VALIDATE_LOCALES" Default="true" Description="Validate that the specified GeoIP locales are supported." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="GEOIP_REFRESH_DAYS" Target="GEOIP_REFRESH_DAYS" Default="7" Description="Re-download the GeoLite2 database when older than this many days." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Log parser -->
+  <Config Name="LOGPARSER_POLL_INTERVAL" Target="LOGPARSER_POLL_INTERVAL" Default="1.0" Description="Interval in seconds to poll the log file for new entries." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="LOGPARSER_SEND_LOGS" Target="LOGPARSER_SEND_LOGS" Default="true" Description="Send parsed logs to the database." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="LOGPARSER_BATCH_SIZE" Target="LOGPARSER_BATCH_SIZE" Default="100" Description="Max records before a forced commit." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="LOGPARSER_COMMIT_INTERVAL" Target="LOGPARSER_COMMIT_INTERVAL" Default="5.0" Description="Max time interval in seconds between database commits." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="LOGPARSER_SKIP_VALIDATION" Target="LOGPARSER_SKIP_VALIDATION" Default="false" Description="Skip validation of log lines." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="LOGPARSER_STORE_DEBUG_LINES" Target="LOGPARSER_STORE_DEBUG_LINES" Default="false" Description="Store all raw log lines in the debug table, not just malformed ones." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Analytics & retention -->
+  <Config Name="ANALYTICS_RAW_RETENTION_DAYS" Target="ANALYTICS_RAW_RETENTION_DAYS" Default="180" Description="Days to keep raw geo_events and access_logs data." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="ANALYTICS_DEBUG_RETENTION_DAYS" Target="ANALYTICS_DEBUG_RETENTION_DAYS" Default="30" Description="Days to keep access_log_debug data." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="ANALYTICS_HOURLY_RETENTION_DAYS" Target="ANALYTICS_HOURLY_RETENTION_DAYS" Default="60" Description="Days to keep hourly continuous aggregate data." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="ANALYTICS_CAGG_REFRESH_INTERVAL_MINUTES" Target="ANALYTICS_CAGG_REFRESH_INTERVAL_MINUTES" Default="5" Description="Minutes between continuous aggregate refreshes." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="ANALYTICS_COMPRESSION_AFTER_DAYS" Target="ANALYTICS_COMPRESSION_AFTER_DAYS" Default="7" Description="Days after which to compress hypertable chunks." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Scheduler -->
+  <Config Name="SCHEDULER_ENABLED" Target="SCHEDULER_ENABLED" Default="true" Description="Enable scheduled background tasks." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="SCHEDULER_LOCATION_REFRESH_INTERVAL_MINUTES" Target="SCHEDULER_LOCATION_REFRESH_INTERVAL_MINUTES" Default="10" Description="Minutes between GeoLocation.last_hit refresh jobs." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Map -->
+  <Config Name="MAP_HOME_LATITUDE" Target="MAP_HOME_LATITUDE" Default="" Description="Optional destination latitude for live request routes. Set both home coordinates to override external-IP auto-detection." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MAP_HOME_LONGITUDE" Target="MAP_HOME_LONGITUDE" Default="" Description="Optional destination longitude for live request routes." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MAP_AUTO_DETECT_HOME" Target="MAP_AUTO_DETECT_HOME" Default="true" Description="Resolve the server's public IP at startup and geolocate it when home coordinates are unset." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MAP_PUBLIC_IP_URL" Target="MAP_PUBLIC_IP_URL" Default="https://api64.ipify.org?format=json" Description="JSON endpoint used for public-IP discovery; response must contain an 'ip' field." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MAP_PUBLIC_IP_TIMEOUT" Target="MAP_PUBLIC_IP_TIMEOUT" Default="3.0" Description="Timeout in seconds for public-IP discovery." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- App metadata -->
+  <Config Name="APP_NAME" Target="APP_NAME" Default="GeoMetrikks API" Description="Application name shown in API metadata." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="APP_DESCRIPTION" Target="APP_DESCRIPTION" Default="Real-time GeoIP lookups and traffic analytics API" Description="Application description shown in API metadata." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="APP_DEBUG" Target="APP_DEBUG" Default="false" Description="Enable debug mode. Development only." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="APP_ENVIRONMENT" Target="APP_ENVIRONMENT" Default="production" Description="Application environment name." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>

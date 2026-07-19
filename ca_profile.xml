@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>
+GeoMetrikks Unraid templates - a real-time nginx access log GeoIP analytics tool with a live traffic map, built with Litestar and TimescaleDB+PostGIS.
+
+This repository ships two Docker templates:
+- **geometrikks** - the main application and web UI
+- **geometrikks-timescaledb** - the companion TimescaleDB+PostGIS database
+
+Install the database template first, then the app template, using a matching password between the two. See the [README](https://github.com/GilbN/geometrikks-unraid-template) for full setup instructions. Support and bug reports: https://github.com/GilbN/geometrikks/issues
+  </Profile>
+  <Icon>https://raw.githubusercontent.com/GilbN/geometrikks/main/resources/static/pwa-512x512.png</Icon>
+  <WebPage>https://github.com/GilbN/geometrikks-unraid-template</WebPage>
+</CommunityApplications>
