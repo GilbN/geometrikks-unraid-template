@@ -53,6 +53,7 @@ Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-t
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/analytics.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/live-tail.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/access-logs.png</Screenshot>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
 
   <!-- Core -->
   <Config Name="WebUI" Target="8000" Default="8000" Mode="tcp" Description="HTTP port for the GeoMetrikks web UI." Type="Port" Display="always" Required="true" Mask="false"/>
