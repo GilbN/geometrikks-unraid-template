@@ -46,11 +46,3 @@ Without these, GeoMetrikks runs in degraded mode (no GeoIP lookups) until you ad
 
 - Full environment variable reference: <https://github.com/GilbN/geometrikks/blob/main/docs/configuration.md>. Most of it is exposed as "advanced" settings on the `geometrikks` template - expand "Show more settings" when adding the container to see database pool tuning, log parser tuning, analytics retention, and map settings.
 - GeoMetrikks itself: <https://github.com/GilbN/geometrikks>
-
-## Using this repo before official Community Apps approval
-
-You can point Unraid at this repository directly instead of waiting for it to be listed in the CA store:
-
-1. Unraid webGUI → **Settings → Docker → Template repositories**
-2. Add: `https://github.com/GilbN/geometrikks-unraid-template`
-3. Both templates will now appear when adding a new container in the Docker tab.
