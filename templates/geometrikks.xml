@@ -55,6 +55,16 @@ Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-t
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/access-logs.png</Screenshot>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
 
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>Latest stable release.</TagDescription>
+  </Branch>
+  <Branch>
+    <Tag>develop</Tag>
+    <TagDescription>Latest development build. May be unstable.</TagDescription>
+    <Beta>true</Beta>
+  </Branch>
+
   <!-- Core -->
   <Config Name="WebUI" Target="8000" Default="8000" Mode="tcp" Description="HTTP port for the GeoMetrikks web UI." Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="GeoIP Data" Target="/app/data/geoip" Default="/mnt/cache/appdata/geometrikks/geoip" Mode="rw" Description="Persistent storage for the downloaded MaxMind GeoLite2 database. This container runs as fixed UID/GID 1000 (not Unraid's usual nobody:users 99:100) - before first start, create this folder and run 'chown -R 1000:1000' on it or the container will fail to write the GeoIP database." Type="Path" Display="always" Required="true" Mask="false"/>
