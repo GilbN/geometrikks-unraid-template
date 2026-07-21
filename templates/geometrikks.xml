@@ -14,11 +14,13 @@ GeoMetrikks is a real-time geolocation analytics tool that tails your nginx acce
 Features:
 - Live GeoIP map with real-time request visualization
 - Traffic analytics dashboard with configurable date ranges
+- CrowdSec integration
 - Searchable access log history with filtering and sorting
 - WebSocket-backed live log tail
 - Batch import of archived logs
 
-Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-timescaledb" template from this same repository first, or point this container at your own TimescaleDB+PostGIS instance. Also requires a free MaxMind GeoLite2 account for GeoIP data (https://www.maxmind.com/en/geolite2/signup). See the repository README for full setup steps.
+- Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-timescaledb" template from this same repository first, or point this container at your own TimescaleDB+PostGIS instance.
+- Also requires a free MaxMind GeoLite2 account for GeoIP data (https://www.maxmind.com/en/geolite2/signup). See the repository README for full setup steps.
   </Overview>
   <Category>Network:Management</Category>
   <Support>https://github.com/GilbN/geometrikks/issues</Support>
@@ -26,26 +28,12 @@ Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-t
   <TemplateURL>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/templates/geometrikks.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/README.md</ReadMe>
   <ExtraSearchTerms>nginx geoip analytics traffic map log parser timescaledb</ExtraSearchTerms>
-  <Requires>Requires a reachable TimescaleDB+PostGIS database (see the companion geometrikks-timescaledb template) and a free MaxMind GeoLite2 account for GeoIP downloads.
-  
-  GeoMetrikks parses a specific nginx log_format. Add it to the http block in your nginx.conf:
-
-  <code>
-  log_format geometrikks '$remote_addr - $remote_user [$time_local] '
-        '"$request" $status $body_bytes_sent '
-        '"$http_referer" $host "$http_user_agent" '
-        '"$request_time" "$upstream_response_time"';
-  </code>
-
-  Then set your access_log to use this format:
-  <code>
-  access_log /var/log/nginx/access.log geometrikks;
-  </code>
-
+  <Requires>Requires a reachable TimescaleDB+PostGIS database (see the companion geometrikks-timescaledb template) and a free MaxMind GeoLite2 account for GeoIP downloads.&#xD;
+  GeoMetrikks parses a specific nginx log_format. See the repository README for details and example log_format configuration.
 </Requires>
   <License>MIT</License>
-  <Changes>Initial release</Changes>
-  <Date>2026-07-19</Date>
+  <Changes>0.4.0 - Added CrowdSec integration variables</Changes>
+  <Date>2026-07-21</Date>
 
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/live.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/map.png</Screenshot>
@@ -128,6 +116,16 @@ Requires a TimescaleDB + PostGIS database - install the companion "geometrikks-t
   <Config Name="MAP_AUTO_DETECT_HOME" Target="MAP_AUTO_DETECT_HOME" Default="true" Description="Resolve the server's public IP at startup and geolocate it when home coordinates are unset." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="MAP_PUBLIC_IP_URL" Target="MAP_PUBLIC_IP_URL" Default="https://api64.ipify.org?format=json" Description="JSON endpoint used for public-IP discovery; response must contain an 'ip' field." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="MAP_PUBLIC_IP_TIMEOUT" Target="MAP_PUBLIC_IP_TIMEOUT" Default="3.0" Description="Timeout in seconds for public-IP discovery." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- CrowdSec -->
+  <Config Name="CROWDSEC_LAPI_URL" Target="CROWDSEC_LAPI_URL" Default="" Description="CrowdSec Local API base URL, e.g. http://crowdsec:8080. Leave blank to disable CrowdSec integration." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="CROWDSEC_BOUNCER_API_KEY" Target="CROWDSEC_BOUNCER_API_KEY" Default="" Description="Bouncer API key (cscli bouncers add geometrikks) - grants read access to CrowdSec decisions." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="CROWDSEC_MACHINE_ID" Target="CROWDSEC_MACHINE_ID" Default="" Description="Machine ID (cscli machines add) - optional, enables ban/unban from the GeoMetrikks UI." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="CROWDSEC_MACHINE_PASSWORD" Target="CROWDSEC_MACHINE_PASSWORD" Default="" Description="Machine password - optional, enables ban/unban from the GeoMetrikks UI." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="CROWDSEC_DEFAULT_BAN_DURATION" Target="CROWDSEC_DEFAULT_BAN_DURATION" Default="4h" Description="Default duration for manual bans (Go duration string)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="CROWDSEC_REQUEST_TIMEOUT" Target="CROWDSEC_REQUEST_TIMEOUT" Default="10.0" Description="LAPI request timeout in seconds." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="CROWDSEC_VERIFY_TLS" Target="CROWDSEC_VERIFY_TLS" Default="true" Description="Verify TLS when LAPI uses https." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="CROWDSEC_STREAM_POLL_INTERVAL" Target="CROWDSEC_STREAM_POLL_INTERVAL" Default="15.0" Description="Seconds between decision-stream polls feeding live ban/unban updates." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <!-- App metadata -->
   <Config Name="APP_NAME" Target="APP_NAME" Default="GeoMetrikks API" Description="Application name shown in API metadata." Type="Variable" Display="advanced" Required="false" Mask="false"/>
