@@ -17,6 +17,7 @@ Features:
 - Live GeoIP map with real-time request visualization
 - Traffic analytics dashboard with configurable date ranges, including a Top ASNs view of the networks your traffic comes from
 - CrowdSec integration
+- OpenID Connect sign-in against Authelia, Authentik, Keycloak, Pocket ID or Google
 - Searchable access log history with filtering and sorting
 - WebSocket-backed live log tail
 - Structured application logging with a live in-UI log viewer, a fail2ban/CrowdSec-friendly login log, and downloadable rotated archives
@@ -31,17 +32,18 @@ Features:
   <Project>https://github.com/GilbN/geometrikks</Project>
   <TemplateURL>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/templates/geometrikks.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/README.md</ReadMe>
-  <ExtraSearchTerms>nginx traefik caddy geoip asn analytics traffic map log parser crowdsec timescaledb</ExtraSearchTerms>
+  <ExtraSearchTerms>nginx traefik caddy geoip asn analytics traffic map log parser crowdsec timescaledb oidc sso authelia</ExtraSearchTerms>
   <Requires>Requires a reachable TimescaleDB+PostGIS database (see the companion geometrikks-timescaledb template) and a free MaxMind GeoLite2 account for GeoIP downloads.&#xD;
   Nginx access logs need a specific log_format. Traefik and Caddy JSON access logs are read as they come. See the repository README for the nginx log_format to use.
 </Requires>
   <License>MIT</License>
   <Changes>
+0.4.0 - OpenID Connect login, from GeoMetrikks 0.17.0. New variables: OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_REDIRECT_URI, OIDC_ALLOWED_USERS, OIDC_ALLOWED_GROUPS, OIDC_SCOPES, OIDC_GROUPS_CLAIM, OIDC_PROVIDER_NAME, OIDC_LOGOUT_IDP and OIDC_CA_BUNDLE. APP_ADMIN_PASSWORD is no longer required when OIDC is configured, and OIDC over https needs APP_SESSION_SECURE=true.
 0.3.0 - Traefik and Caddy JSON access logs are read alongside nginx, so the log mount is now called Access Logs. New variables: LOGPARSER_LOG_FORMATS, LOGPARSER_ENABLED, GEOIP_ASN_ENABLED (downloads the GeoLite2 ASN database that feeds the Top ASNs view), GEOIP_DB_PATH, GEOIP_ASN_DB_PATH, APP_MODE, APP_PROXY_ADVISORY, DB_MIGRATE_ON_STARTUP, MAP_HOME_LOCATIONS, MAP_HOME_REFRESH_HOURS, API_HOST and API_PORT. The container stop timeout is now 20s, so the app finishes flushing its ingestion batch instead of being killed mid-write.
 0.2.0 - PUID/PGID support (defaults to Unraid's 99:100 - no more manual chown of the appdata folders). Added the App Logs path mount and the new LOG_* logging variables, plus LOGPARSER_IGNORE_IPS, APP_SESSION_SECURE and APP_TRUSTED_PROXIES. API_LOG_LEVEL is deprecated in favour of LOG_LEVEL.
 0.1.0 - Added CrowdSec integration variables
 </Changes>
-  <Date>2026-09-03</Date>
+  <Date>2026-09-20</Date>
 
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/live.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/GilbN/geometrikks/main/data/screenshots/map.png</Screenshot>
@@ -74,9 +76,9 @@ Features:
   <Config Name="PGID" Target="PGID" Default="100" Description="Group ID the app runs as. 100 is Unraid's 'users' group." Type="Variable" Display="always" Required="false" Mask="false"/>
 
   <Config Name="APP_ADMIN_USER" Target="APP_ADMIN_USER" Default="admin" Description="Web UI login username." Type="Variable" Display="always" Required="true" Mask="false"/>
-  <Config Name="APP_ADMIN_PASSWORD" Target="APP_ADMIN_PASSWORD" Default="" Description="Web UI login password. Required unless APP_AUTH_DISABLED=true." Type="Variable" Display="always" Required="true" Mask="true"/>
-  <Config Name="APP_AUTH_DISABLED" Target="APP_AUTH_DISABLED" Default="false" Description="Set true ONLY if this container sits behind an authenticating reverse proxy (Authelia, Tailscale, etc)." Type="Variable" Display="always" Required="false" Mask="false"/>
-  <Config Name="APP_SESSION_SECURE" Target="APP_SESSION_SECURE" Default="false" Description="Mark the session cookie Secure so browsers only send it over HTTPS. Set true when you reach the UI through a TLS reverse proxy; leave false if you browse to http://server-ip:8000 directly, or you will not be able to log in." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="APP_ADMIN_PASSWORD" Target="APP_ADMIN_PASSWORD" Default="" Description="Web UI login password. Leave it blank only if you set APP_AUTH_DISABLED=true or configured OIDC_* below; otherwise the container refuses to start. With OIDC configured, a password set here keeps the password form next to the provider button, so you can still log in when the provider is down." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="APP_AUTH_DISABLED" Target="APP_AUTH_DISABLED" Default="false" Description="Set true ONLY if this container sits behind an authenticating reverse proxy (Authelia, Tailscale, etc). There is then no login and no session: anyone who can reach the container has full access. It cannot be combined with the OIDC_* settings below, and the app will not start if you set both." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="APP_SESSION_SECURE" Target="APP_SESSION_SECURE" Default="false" Description="Mark the session cookie Secure so browsers only send it over HTTPS. Set true when you reach the UI through a TLS reverse proxy; leave false if you browse to http://server-ip:8000 directly, or you will not be able to log in. An https OIDC_REDIRECT_URI requires true, and the app will not start otherwise." Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="APP_TRUSTED_PROXIES" Target="APP_TRUSTED_PROXIES" Default="" Description="Reverse-proxy IPs/CIDRs allowed to supply X-Forwarded-For, e.g. 172.17.0.0/16 for Unraid's docker bridge. Single value, comma-separated, or a JSON list. Empty (default): forwarded headers are never trusted." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="MAXMINDDB_USER_ID" Target="MAXMINDDB_USER_ID" Default="" Description="MaxMind account ID, for GeoLite2 database auto-download. Free account: https://www.maxmind.com/en/geolite2/signup" Type="Variable" Display="always" Required="false" Mask="true"/>
   <Config Name="MAXMINDDB_LICENSE_KEY" Target="MAXMINDDB_LICENSE_KEY" Default="" Description="MaxMind license key, for GeoLite2 database auto-download." Type="Variable" Display="always" Required="false" Mask="true"/>
@@ -160,6 +162,19 @@ Features:
   <Config Name="CROWDSEC_REQUEST_TIMEOUT" Target="CROWDSEC_REQUEST_TIMEOUT" Default="10.0" Description="LAPI request timeout in seconds." Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="CROWDSEC_VERIFY_TLS" Target="CROWDSEC_VERIFY_TLS" Default="true" Description="Verify TLS when LAPI uses https." Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="CROWDSEC_STREAM_POLL_INTERVAL" Target="CROWDSEC_STREAM_POLL_INTERVAL" Default="15.0" Description="Seconds between decision-stream polls feeding live ban/unban updates." Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <!-- OpenID Connect -->
+  <Config Name="OIDC_ISSUER" Target="OIDC_ISSUER" Default="" Description="Issuer URL of your identity provider, e.g. https://auth.example.com. Leave blank to keep OIDC off. GeoMetrikks reads {issuer}/.well-known/openid-configuration and the token's iss claim must match this value exactly. Must be https unless the host is localhost. Filling in this plus the client id, secret and redirect URI puts a 'Sign in with ...' button on the login page." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="OIDC_CLIENT_ID" Target="OIDC_CLIENT_ID" Default="" Description="Client id of the confidential client you registered for GeoMetrikks at the provider. The authorization code flow with PKCE is used, so a public client will not work." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="OIDC_CLIENT_SECRET" Target="OIDC_CLIENT_SECRET" Default="" Description="Client secret for that client." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="OIDC_REDIRECT_URI" Target="OIDC_REDIRECT_URI" Default="" Description="The exact callback URL registered at the provider: this container's public address plus /api/v1/auth/oidc/callback, e.g. https://geo.example.com/api/v1/auth/oidc/callback. It has to end in that path, and plain http is only accepted on localhost. With an https URL you also need APP_SESSION_SECURE=true." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="OIDC_ALLOWED_USERS" Target="OIDC_ALLOWED_USERS" Default="" Description="Who may sign in, as verified email addresses or subject identifiers. Single value, comma-separated, or a JSON list. An email only matches when the provider marks it verified. At least one of OIDC_ALLOWED_USERS and OIDC_ALLOWED_GROUPS is required: without an allow list, everyone the provider authenticates would get in, which for Google means everyone." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="OIDC_ALLOWED_GROUPS" Target="OIDC_ALLOWED_GROUPS" Default="" Description="Groups allowed to sign in; being in any one of them is enough. Same formats as OIDC_ALLOWED_USERS. The provider has to send the group claim, so keep the groups scope in OIDC_SCOPES." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="OIDC_SCOPES" Target="OIDC_SCOPES" Default="openid profile email groups" Description="Space-separated scopes requested at login; openid is mandatory. Authelia works with the default. Google rejects the groups scope, and Authentik only sends groups if you add the mapping yourself, so use 'openid profile email' for those and allow people by email in OIDC_ALLOWED_USERS." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="OIDC_GROUPS_CLAIM" Target="OIDC_GROUPS_CLAIM" Default="groups" Description="Claim that carries group membership. It is read from the ID token and from the userinfo endpoint, so providers that only serve groups from userinfo (Authelia) need nothing extra." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC_PROVIDER_NAME" Target="OIDC_PROVIDER_NAME" Default="SSO" Description="Label on the login button: 'Sign in with {name}'." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC_LOGOUT_IDP" Target="OIDC_LOGOUT_IDP" Default="false" Description="On logout, also end the session at the provider. This only works when the provider's discovery document advertises an end_session_endpoint; Authelia 4.39 and Google do not, so leave it false there. Before enabling it, register {your app URL}/signed-out as the post-logout redirect URI at the provider. Logout always clears the GeoMetrikks session either way." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC_CA_BUNDLE" Target="OIDC_CA_BUNDLE" Default="" Description="PEM file holding the CA that signed your provider's certificate, for a provider behind an internal CA. Give the path as the container sees it and add a path mapping for the file yourself, e.g. host /mnt/user/appdata/geometrikks/certs/ca.pem to container /app/certs/ca.pem, readable by PUID:PGID. The app refuses to start when the file is missing. There is no switch to turn certificate verification off." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <!-- App metadata -->
   <Config Name="APP_NAME" Target="APP_NAME" Default="GeoMetrikks API" Description="Application name shown in API metadata." Type="Variable" Display="advanced" Required="false" Mask="false"/>

@@ -25,10 +25,29 @@ Add `geometrikks` from Community Apps and fill in:
 
 - **DB_HOST** - your Unraid server's IP address (e.g. `192.168.1.50`)
 - **DB_PASSWORD** - the *same* password you set for `geometrikks-timescaledb` in step 1
-- **APP_ADMIN_USER** / **APP_ADMIN_PASSWORD** - your web UI login or **APP_AUTH_DISABLED=true**
+- **APP_ADMIN_USER** / **APP_ADMIN_PASSWORD** - your web UI login, or **APP_AUTH_DISABLED=true**, or an identity provider (see below)
 - **Access Logs** path - point this at wherever your reverse proxy writes its access logs (defaults to a SWAG-style path; change it for Nginx Proxy Manager, Traefik, Caddy, or whatever you actually run)
 
 Leave DB_PORT/DB_USER/DB_DATABASE at their defaults unless you changed the matching values in step 1.
+
+### Signing in with an identity provider
+
+GeoMetrikks 0.17.0 added OpenID Connect login, so the login page can hand you off to Authelia, Authentik, Keycloak, Pocket ID or Google. Four variables switch it on:
+
+- **OIDC_ISSUER** - the provider's issuer URL, e.g. `https://auth.example.com`
+- **OIDC_CLIENT_ID** / **OIDC_CLIENT_SECRET** - a confidential client you register for GeoMetrikks
+- **OIDC_REDIRECT_URI** - `https://geo.example.com/api/v1/auth/oidc/callback`, registered at the provider exactly as written
+
+Then say who gets in, with **OIDC_ALLOWED_USERS** (verified email addresses or subject identifiers), **OIDC_ALLOWED_GROUPS**, or both. One of the two is mandatory and the container refuses to start without it, which beats discovering that every Google account on earth can read your traffic.
+
+Two things to watch for on Unraid:
+
+- The redirect URI is the *public* https address of the app, so this needs a TLS reverse proxy in front of the container, and **APP_SESSION_SECURE=true** with it. `http://<unraid-ip>:8000` will not work as a redirect URI, and an https URI with a non-Secure cookie fails validation at startup.
+- Keep **APP_ADMIN_PASSWORD** set unless you want the provider to be the only way in. With both, the login page shows the provider button and the password form, which is what you want the day Authelia stops answering. Clear it and the password form disappears.
+
+Per provider: Authelia works with the default **OIDC_SCOPES** (`openid profile email groups`) and serves groups from its userinfo endpoint, which GeoMetrikks reads. Authentik wants the issuer URL that ends in the application slug, and `openid profile email` unless you add a groups mapping. Google rejects the `groups` scope, so use `openid profile email` there and allow people by email. **OIDC_LOGOUT_IDP** only does something when the provider advertises an `end_session_endpoint`; Authelia 4.39 and Google do not, so leave it `false` for those. *Settings > Status* tells you whether the discovery document could be fetched.
+
+The [upstream README](https://github.com/GilbN/geometrikks#openid-connect) has the rest, including an Authelia client snippet to copy.
 
 ### PUID / PGID and file ownership
 
