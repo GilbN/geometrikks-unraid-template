@@ -92,7 +92,7 @@ Two databases are downloaded into the *GeoIP Data* mount: City, which drives the
 
 ## Notes
 
-- Full environment variable reference: <https://github.com/GilbN/geometrikks/blob/main/docs/configuration.md>. Most of it is exposed as "advanced" settings on the `geometrikks` template - expand "Show more settings" when adding the container to see database pool tuning, log parser tuning, log rotation, analytics retention, and map settings.
+- Full environment variable reference: <https://github.com/GilbN/geometrikks/blob/main/docs/configuration.md>. Most of it is exposed as "advanced" settings on the `geometrikks` template - expand "Show more settings" when adding the container to see log parser tuning, log rotation, analytics retention, and map settings. Settings the template leaves out use the app's defaults, and you can add them with "Add another Path, Port, Variable".
 - **LOGPARSER_IGNORE_IPS** is worth setting: give it your own public IP (or any CIDR) to drop that traffic entirely - no geo event, access log or debug row. LAN traffic is never ingested in the first place, so this is for your own WAN-side hits.
 - Reaching the UI through a TLS reverse proxy? Set **APP_SESSION_SECURE=true**, and put your proxy's IP/CIDR in **APP_TRUSTED_PROXIES** (e.g. `172.17.0.0/16`) so client IPs are read from `X-Forwarded-For`. Leave `APP_SESSION_SECURE` at `false` if you browse to `http://<unraid-ip>:8000` directly, or logins won't stick.
 - **API_LOG_LEVEL** is deprecated - use **LOG_LEVEL**. If an existing container still has it, delete the variable. Leaving it blank stops the app from starting.
