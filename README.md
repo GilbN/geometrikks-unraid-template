@@ -25,6 +25,8 @@ Add `geometrikks` from Community Apps and fill in:
 
 - **DB_HOST** - your Unraid server's IP address (e.g. `192.168.1.50`)
 - **DB_PASSWORD** - the *same* password you set for `geometrikks-timescaledb` in step 1
+- **MAXMINDDB_USER_ID** / **MAXMINDDB_LICENSE_KEY** - your free MaxMind GeoLite2 credentials (see step 3)
+- **MAP_CARTO_API_KEY** - a free CARTO basemaps key from <https://carto.com/basemaps/apikey>. CARTO's terms require one per deployment, and keyless map tiles may stop working
 - **APP_ADMIN_USER** / **APP_ADMIN_PASSWORD** - your web UI login, or **APP_AUTH_DISABLED=true**, or an identity provider (see below)
 - **Access Logs** path - point this at wherever your reverse proxy writes its access logs (defaults to a SWAG-style path; change it for Nginx Proxy Manager, Traefik, Caddy, or whatever you actually run)
 
@@ -66,7 +68,7 @@ Both rotate by size and gzip their archives (`LOG_MAIN_*` / `LOG_LOGIN_*`). You 
 
 ### Which log format?
 
-The mount lands at `/var/log/nginx` inside the container whatever proxy you run, and **LOGPARSER_LOG_PATHS** names the file there. The format is detected per file, so Traefik and Caddy JSON logs need nothing beyond the path. Pin it with **LOGPARSER_LOG_FORMATS** (`geometrikks-json`, `nginx`, `traefik-json`, `caddy-json`) if detection gets it wrong.
+The mount lands at `/var/log/access` inside the container whatever proxy you run, and **LOGPARSER_LOG_PATHS** names the file there. The format is detected per file, so Traefik and Caddy JSON logs need nothing beyond the path. Pin it with **LOGPARSER_LOG_FORMATS** (`geometrikks-json`, `nginx`, `traefik-json`, `caddy-json`) if detection gets it wrong.
 
 Nginx is the one that needs work on your side: GeoMetrikks reads a keyed JSON `log_format` you have to add to your `nginx.conf`. The older positional format still parses, so an existing setup keeps working. Both are in the [upstream README](https://github.com/GilbN/geometrikks#nginx-setup).
 
@@ -80,7 +82,7 @@ GeoMetrikks needs MaxMind's free GeoLite2 databases for GeoIP lookups:
 2. Create a license key under your account
 3. Set **MAXMINDDB_USER_ID** and **MAXMINDDB_LICENSE_KEY** on the `geometrikks` template
 
-Without these, GeoMetrikks runs in degraded mode (no GeoIP lookups) until you add them.
+The template requires both. Without them GeoMetrikks would run in degraded mode, with no GeoIP lookups.
 
 Two databases are downloaded into the *GeoIP Data* mount: City, which drives the map and geo analytics, and ASN, which records the network behind each request and fills the Top ASNs view. Set **GEOIP_ASN_ENABLED=false** to skip the second one.
 
