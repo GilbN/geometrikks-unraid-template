@@ -14,14 +14,15 @@
   <TemplateURL>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/templates/geometrikks-timescaledb.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/GilbN/geometrikks-unraid-template/main/README.md</ReadMe>
   <ExtraSearchTerms>postgres postgresql postgis timescale geometrikks database</ExtraSearchTerms>
-  <Requires>Must be reachable from the geometrikks app container. This template exposes port 5432 to the host/LAN so the app container (run separately) can reach it via the Unraid server's IP address. Runs as fixed UID/GID 1000 the whole time (no root phase to self-fix permissions, unlike most Postgres images) - pre-create the Appdata folder and chown it to 1000:1000 before first start, and do not run Unraid's "New Permissions" tool against it afterward, or Postgres will fail to start.</Requires>
+  <Requires>Must be reachable from the geometrikks app container. This template exposes port 5432 to the host/LAN so the app container (run separately) can reach it via the Unraid server's IP address. The database runs as Unraid's nobody:users (99:100), which is who owns the Appdata folder Unraid creates, so no manual chown is needed. Do not run Unraid's "New Permissions" tool against the folder while the container is running.</Requires>
   <License>Apache-2.0 (TimescaleDB Community License for TimescaleDB extension - see https://github.com/timescale/timescaledb/blob/main/LICENSE)</License>
   <Changes>
+0.3.0 - The database now runs as 99:100 (--user 99:100 in Extra Parameters) instead of the image's fixed 1000:1000. Unraid creates the Appdata folder owned by 99:100 and the image cannot change that, so a first install exited at startup with "initdb: could not change permissions" and the app saw connection refused. Already running this template with data owned by 1000:1000? Keep your container as it is, or stop it, run chown -R 99:100 on the Appdata folder and add --user 99:100 to Extra Parameters.
 0.2.0 - Postgres now starts with a larger background worker pool. GeoMetrikks registers around 32 TimescaleDB jobs whose refresh policies all fire on the same tick, and the image default of 16 workers is too small for that burst: the database logs "failed to launch job ... out of background workers" and continuous aggregates fall behind. Update the container to pick this up.
 0.1.0 - Initial release
 </Changes>
-  <Date>2026-09-03</Date>
-  <ExtraParams>--restart=unless-stopped --shm-size=512m</ExtraParams>
+  <Date>2026-10-07</Date>
+  <ExtraParams>--restart=unless-stopped --shm-size=512m --user 99:100</ExtraParams>
   <!-- GeoMetrikks registers ~32 TimescaleDB background jobs and its continuous
        aggregate refresh policies all fire on the same tick. The image default
        (timescaledb.max_background_workers=16) cannot cover that burst.
