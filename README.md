@@ -1,6 +1,6 @@
 # GeoMetrikks Unraid Templates
 
-Unraid Community Apps templates for [GeoMetrikks](https://github.com/GilbN/geometrikks) - a real-time geolocation analytics tool that tails your reverse proxy's access logs, does GeoIP lookups, and visualizes traffic on a live interactive map. It reads nginx, Traefik JSON and Caddy JSON logs, and works out which is which per file.
+Unraid Community Apps templates for [GeoMetrikks](https://github.com/GilbN/geometrikks) - a real-time geolocation analytics tool that tails your reverse proxy's access logs, does GeoIP lookups, and visualizes traffic on a live interactive map. It reads nginx, Traefik JSON and Caddy JSON logs, from a file or from Grafana Loki, and works out which is which per file.
 
 This repository ships two Docker templates:
 
@@ -72,7 +72,17 @@ The mount lands at `/var/log/access` inside the container whatever proxy you run
 
 Nginx is the one that needs work on your side: GeoMetrikks reads a keyed JSON `log_format` you have to add to your `nginx.conf`. The older positional format still parses, so an existing setup keeps working. Both are in the [upstream README](https://github.com/GilbN/geometrikks#nginx-setup).
 
-Tailing several files? **LOGPARSER_LOG_PATHS** takes a JSON list, and giving **LOGPARSER_HOST_NAME** a list of the same length labels each file separately, so the UI can filter them as separate sources.
+Tailing several files? **LOGPARSER_LOG_PATHS** takes a JSON list, and giving **LOGPARSER_SERVER_NAME** a list of the same length names each file separately, so the UI can filter them as separate servers.
+
+### Reading from Grafana Loki
+
+If Alloy or Promtail already ships your proxy's access logs to Loki, GeoMetrikks can read them from there. The template doesn't list the Loki variables, because a blank **LOKI_URL** stops the app from starting. Add them with "Add another Path, Port, Variable":
+
+- **LOKI_URL** - e.g. `http://192.168.1.50:3100`. Use an address this container can reach, which on the default bridge network means your Unraid server's IP, not `localhost`.
+- **LOKI_QUERIES** - one LogQL stream selector, e.g. `{job="traefik"}`, or a JSON list of them, one source each.
+- **LOKI_SERVER_NAMES** - optional, one name per selector. Without it every selector gets the first **LOGPARSER_SERVER_NAME**.
+
+**LOKI_USERNAME** and **LOKI_PASSWORD** go together, for a Loki behind basic auth. The file in **LOGPARSER_LOG_PATHS** is still tailed next to Loki. Loki has to hold the raw access-log line, and Traefik's start-time timestamps need care. The [upstream README](https://github.com/GilbN/geometrikks#loki-setup) covers both.
 
 ### 3. Get a free MaxMind GeoLite2 key
 
@@ -97,6 +107,7 @@ Two databases are downloaded into the *GeoIP Data* mount: City, which drives the
 - Reaching the UI through a TLS reverse proxy? Set **APP_SESSION_SECURE=true**, and put your proxy's IP/CIDR in **APP_TRUSTED_PROXIES** (e.g. `172.17.0.0/16`) so client IPs are read from `X-Forwarded-For`. Leave `APP_SESSION_SECURE` at `false` if you browse to `http://<unraid-ip>:8000` directly, or logins won't stick.
 - **API_LOG_LEVEL** is deprecated - use **LOG_LEVEL**. If an existing container still has it, delete the variable. Leaving it blank stops the app from starting.
 - **APP_PROXY_ADVISORY** puts a warning on *Settings > Status* when the traffic in a tailed file comes from CDN or private addresses, which means your proxy is logging the hop in front of it instead of the visitor. Set it to `false` if that's deliberate (Tailscale-only access, a CDN you front on purpose).
-- **APP_MODE** is `full` here and should stay that way. `agent` turns the container headless: no UI, no API, just tail, geolocate and write into a shared database. It's for a second GeoMetrikks next to another proxy, feeding this one.
+- **APP_MODE** is `full` here and should stay that way. `agent` turns the container headless: no UI, no API, just tail, geolocate and write into a shared database. It's for a second GeoMetrikks next to another proxy, feeding this one. Give each agent its own **APP_INSTANCE_NAME** so it gets its own row on *Settings > Agents*. Two unnamed agents both go by `agent` and overwrite each other's status.
+- GeoMetrikks 0.21.0 renamed six variables. **LOGPARSER_HOST_NAME** is now **LOGPARSER_SERVER_NAME**, and the `MAP_HOME_*` variables are `MAP_SERVER_*`: **MAP_SERVER_LOCATIONS**, **MAP_SERVER_LATITUDE**, **MAP_SERVER_LONGITUDE**, **MAP_AUTO_DETECT_SERVER_LOCATION** and **MAP_SERVER_LOCATION_REFRESH_HOURS**. The old names work until 1.0, and *Settings > Status* tells you which ones a container still reads. If a container has an old and a new name set to different values, the app refuses to start. Copy the value you set into the new variable, then delete the old one.
 - The template sets `--stop-timeout=20` so the app can finish flushing its ingestion batch on shutdown. Unraid's default of 10 seconds kills it mid-write.
 - GeoMetrikks itself: <https://github.com/GilbN/geometrikks>
