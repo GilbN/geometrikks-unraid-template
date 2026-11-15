@@ -27,6 +27,7 @@ Add `geometrikks` from Community Apps and fill in:
 - **DB_PASSWORD** - the *same* password you set for `geometrikks-timescaledb` in step 1
 - **MAXMINDDB_USER_ID** / **MAXMINDDB_LICENSE_KEY** - your free MaxMind GeoLite2 credentials (see step 3)
 - **MAP_CARTO_API_KEY** - a free CARTO basemaps key from <https://carto.com/basemaps/apikey>. CARTO's terms require one per deployment, and keyless map tiles may stop working
+- **MAP_ESRI_API_KEY** - optional, for the map's Satellite view. Make a free API key with basemap access at <https://location.arcgis.com>. Without it the Satellite switch stays off
 - **APP_ADMIN_USER** / **APP_ADMIN_PASSWORD** - your web UI login, or **APP_AUTH_DISABLED=true**, or an identity provider (see below)
 - **Access Logs** path - point this at wherever your reverse proxy writes its access logs (defaults to a SWAG-style path; change it for Nginx Proxy Manager, Traefik, Caddy, or whatever you actually run)
 
@@ -49,7 +50,11 @@ Two things to watch for on Unraid:
 
 Per provider: Authelia works with the default **OIDC_SCOPES** (`openid profile email groups`) and serves groups from its userinfo endpoint, which GeoMetrikks reads. Authentik wants the issuer URL that ends in the application slug, and `openid profile email` unless you add a groups mapping. Google rejects the `groups` scope, so use `openid profile email` there and allow people by email. **OIDC_LOGOUT_IDP** only does something when the provider advertises an `end_session_endpoint`; Authelia 4.39 and Google do not, so leave it `false` for those. *Settings > Status* tells you whether the discovery document could be fetched.
 
-The [upstream README](https://github.com/GilbN/geometrikks#openid-connect) has the rest, including an Authelia client snippet to copy.
+The [OpenID Connect page](https://geometrikks.dev/docs/features/authentication/oidc/) in the GeoMetrikks docs has the rest, including an Authelia client snippet to copy.
+
+A login lasts 7 days. Set **APP_SESSION_MAX_AGE_DAYS** (under advanced, 1 to 400) to change that, for example for a wall screen nobody logs in to by hand. Since GeoMetrikks 0.23.0 sessions live in the database, so restarts and updates no longer log you out. The first start on 0.23.0 or later does, once.
+
+Scripts and dashboards don't need a login. Create a Read or Read/write key under *Settings > API keys* and send it as `Authorization: Bearer gmk_...`. The [API keys page](https://geometrikks.dev/docs/features/authentication/api-keys/) lists what each scope can do.
 
 ### PUID / PGID and file ownership
 
@@ -70,7 +75,7 @@ Both rotate by size and gzip their archives (`LOG_MAIN_*` / `LOG_LOGIN_*`). You 
 
 The mount lands at `/var/log/access` inside the container whatever proxy you run, and **LOGPARSER_LOG_PATHS** names the file there. The format is detected per file, so Traefik and Caddy JSON logs need nothing beyond the path. Pin it with **LOGPARSER_LOG_FORMATS** (`geometrikks-json`, `nginx`, `traefik-json`, `caddy-json`) if detection gets it wrong.
 
-Nginx is the one that needs work on your side: GeoMetrikks reads a keyed JSON `log_format` you have to add to your `nginx.conf`. The older positional format still parses, so an existing setup keeps working. Both are in the [upstream README](https://github.com/GilbN/geometrikks#nginx-setup).
+Nginx is the one that needs work on your side: GeoMetrikks reads a keyed JSON `log_format` you have to add to your `nginx.conf`. The older positional format still parses, so an existing setup keeps working. Both are on the [nginx page](https://geometrikks.dev/docs/sources/nginx/) of the GeoMetrikks docs, which also has pages for [Nginx Proxy Manager](https://geometrikks.dev/docs/sources/nginx-proxy-manager/), [Traefik](https://geometrikks.dev/docs/sources/traefik/) and [Caddy](https://geometrikks.dev/docs/sources/caddy/).
 
 Tailing several files? **LOGPARSER_LOG_PATHS** takes a JSON list, and giving **LOGPARSER_SERVER_NAME** a list of the same length names each file separately, so the UI can filter them as separate servers.
 
@@ -82,7 +87,19 @@ If Alloy or Promtail already ships your proxy's access logs to Loki, GeoMetrikks
 - **LOKI_QUERIES** - one LogQL stream selector, e.g. `{job="traefik"}`, or a JSON list of them, one source each.
 - **LOKI_SERVER_NAMES** - optional, one name per selector. Without it every selector gets the first **LOGPARSER_SERVER_NAME**.
 
-**LOKI_USERNAME** and **LOKI_PASSWORD** go together, for a Loki behind basic auth. The file in **LOGPARSER_LOG_PATHS** is still tailed next to Loki. Loki has to hold the raw access-log line, and Traefik's start-time timestamps need care. The [upstream README](https://github.com/GilbN/geometrikks#loki-setup) covers both.
+**LOKI_USERNAME** and **LOKI_PASSWORD** go together, for a Loki behind basic auth. The file in **LOGPARSER_LOG_PATHS** is still tailed next to Loki. Loki has to hold the raw access-log line, and Traefik's start-time timestamps need care. The [Loki page](https://geometrikks.dev/docs/sources/loki/) covers both.
+
+### Spamhaus DROP and AbuseIPDB
+
+GeoMetrikks 0.24.0 downloads the Spamhaus DROP lists of hijacked, spam and cybercrime networks once a day and marks their traffic in Analytics, the dashboard, the tables and the IP menus. The Security page lists the DROP networks in your traffic, and with CrowdSec machine credentials you can ban them from there. It is on by default. If you limit outbound traffic, allow `www.spamhaus.org`, or set **DROP_ENABLED=false** to stop the downloads and hide the marks.
+
+AbuseIPDB, from 0.25.0, stays off until you give it a key. Create one on the API tab of your account at <https://www.abuseipdb.com>, then set:
+
+- **ABUSEIPDB_API_KEY** - shows an IP's AbuseIPDB score in the IP inspector. Each lookup sends the IP to AbuseIPDB and uses one of your daily checks.
+- **ABUSEIPDB_REPORTING_ENABLED=true** - adds Report to AbuseIPDB to the IP menu and a Reports tab to the Security page. AbuseIPDB publishes every report, so read the prefilled comment before you send it.
+- **ABUSEIPDB_BLACKLIST_ENABLED=true** - downloads AbuseIPDB's blacklist once a day and marks the listed IPs. The list is for your own use: AbuseIPDB forbids republishing it, and free plans can't be used commercially.
+
+Reporting needs the key, and so does the blacklist unless you already download it yourself. Turn either on without one and the app refuses to start. For a blacklist you already pull, point **ABUSEIPDB_BLACKLIST_FILE** (under advanced) at it and add a path mapping for the file. That needs no key. The [AbuseIPDB page](https://geometrikks.dev/docs/features/abuseipdb/) has the details.
 
 ### 3. Get a free MaxMind GeoLite2 key
 
@@ -102,10 +119,11 @@ Two databases are downloaded into the *GeoIP Data* mount: City, which drives the
 
 ## Notes
 
-- Full environment variable reference: <https://github.com/GilbN/geometrikks/blob/main/docs/configuration.md>. Most of it is exposed as "advanced" settings on the `geometrikks` template - expand "Show more settings" when adding the container to see log parser tuning, log rotation, analytics retention, and map settings. Settings the template leaves out use the app's defaults, and you can add them with "Add another Path, Port, Variable".
+- Full documentation: <https://geometrikks.dev/docs/>. Every environment variable is in the [configuration reference](https://geometrikks.dev/docs/reference/configuration/). Most of it is exposed as "advanced" settings on the `geometrikks` template - expand "Show more settings" when adding the container to see log parser tuning, log rotation, analytics retention, and map settings. Settings the template leaves out use the app's defaults, and you can add them with "Add another Path, Port, Variable".
 - **LOGPARSER_IGNORE_IPS** is worth setting: give it your own public IP (or any CIDR) to drop that traffic entirely - no geo event, access log or debug row. LAN traffic is never ingested in the first place, so this is for your own WAN-side hits.
 - Reaching the UI through a TLS reverse proxy? Set **APP_SESSION_SECURE=true**, and put your proxy's IP/CIDR in **APP_TRUSTED_PROXIES** (e.g. `172.17.0.0/16`) so client IPs are read from `X-Forwarded-For`. Leave `APP_SESSION_SECURE` at `false` if you browse to `http://<unraid-ip>:8000` directly, or logins won't stick.
-- **API_LOG_LEVEL** is deprecated - use **LOG_LEVEL**. If an existing container still has it, delete the variable. Leaving it blank stops the app from starting.
+- GeoMetrikks 0.23.0 dropped **API_LOG_LEVEL**, **API_HOST**, **API_PORT**, **APP_NAME**, **APP_DESCRIPTION**, **GEOIP_VALIDATE_DB_PATH** and **GEOIP_VALIDATE_LOCALES**. The app ignores them now, so delete any an older container still has. If you set API_LOG_LEVEL, move the value to **LOG_LEVEL**.
+- Every 12 hours the app asks api.github.com whether a newer release is out and shows it on *Settings > About*. The request carries nothing about your install. Set **APP_UPDATE_CHECK=false** (under advanced) to turn it off.
 - **APP_PROXY_ADVISORY** puts a warning on *Settings > Status* when the traffic in a tailed file comes from CDN or private addresses, which means your proxy is logging the hop in front of it instead of the visitor. Set it to `false` if that's deliberate (Tailscale-only access, a CDN you front on purpose).
 - **APP_MODE** is `full` here and should stay that way. `agent` turns the container headless: no UI, no API, just tail, geolocate and write into a shared database. It's for a second GeoMetrikks next to another proxy, feeding this one. Give each agent its own **APP_INSTANCE_NAME** so it gets its own row on *Settings > Agents*. Two unnamed agents both go by `agent` and overwrite each other's status.
 - GeoMetrikks 0.21.0 renamed six variables. **LOGPARSER_HOST_NAME** is now **LOGPARSER_SERVER_NAME**, and the `MAP_HOME_*` variables are `MAP_SERVER_*`: **MAP_SERVER_LOCATIONS**, **MAP_SERVER_LATITUDE**, **MAP_SERVER_LONGITUDE**, **MAP_AUTO_DETECT_SERVER_LOCATION** and **MAP_SERVER_LOCATION_REFRESH_HOURS**. The old names work until 1.0, and *Settings > Status* tells you which ones a container still reads. If a container has an old and a new name set to different values, the app refuses to start. Copy the value you set into the new variable, then delete the old one.
